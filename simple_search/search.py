@@ -1,60 +1,64 @@
 from django.db import models
 from django.contrib import messages
 
-import search
+from . import utils
 
 
-def _get_date_query(
-    request, context, df, dt, date_fields
+def get_date_query(
+    request, date_from_query_param, date_to_query_param, date_fields,
+    context=None, human_readable_date_format='MM/DD/YYYY'
 ):
     query = models.Q()
     GET = request.GET
 
-    query_date_from_string = GET.get(df, None)
-    if query_date_from_string and query_date_from_string.strip():
-        context[df] = query_date_from_string
+    query_date_from_string = GET.get(date_from_query_param, '').strip()
+    query_date_to_string = GET.get(date_to_query_param, '').strip()
+    if context:
+        if query_date_from_string:
+            context[date_from_query_param] = query_date_from_string
 
-    query_date_to_string = GET.get(dt, None)
-    if query_date_to_string and query_date_to_string.strip():
-        context[dt] = query_date_to_string
+        if query_date_to_string:
+            context[date_to_query_param] = query_date_to_string
 
     if query_date_from_string or query_date_to_string:
         try:
-            query = search.get_date_query(
+            query = utils.get_date_query(
                 query_date_from_string, query_date_to_string, date_fields
             )
-        except search.DoesNotMatchFormat:
+        except utils.DoesNotMatchFormat:
             messages.add_message(
                 request,
                 messages.WARNING,
-                "Invalid date. Please use MM/DD/YYYY."
+                "Invalid date. Please use {}.".format(
+                    human_readable_date_format
+                )
             )
 
     return query
 
 
-def _get_query(request, context, q, fields):
+def get_query(request, query_param, fields, context=None):
     query = models.Q()
     GET = request.GET
 
-    query_string = GET.get(q, None)
-    if query_string and query_string.strip():
-        context[q] = query_string
+    query_string = GET.get(query_param, '').strip()
+    if context and query_string:
+        context[query_param] = query_string
 
-        query = search.get_query(query_string, fields)
+        query = utils.get_query(query_string, fields)
 
     return query
 
 
 def simple_search(
     request,
-    context,
+    context=None,
     model=None,
     queryset=None,
-    query_param=None,
+    query_param='q',
     fields=None,
-    date_from_query_param=None,
-    date_to_query_param=None,
+    date_from_query_param='df',
+    date_to_query_param='dt',
     date_fields=None
 ):
     if not model and not queryset:
@@ -67,25 +71,17 @@ def simple_search(
         queryset = model.objects.all()
 
     if fields:
-        if not query_param:
-            q = 'q'
-        else:
-            q = query_param
-
-        query = _get_query(request, context, q, fields)
+        query = _get_query(request, query_param, fields, context)
         queryset = queryset.filter(query)
 
     if date_fields:
-        if not date_from_query_param:
-            df = 'df'
-        else:
-            df = date_from_query_param
-        if not date_to_query_param:
-            dt = 'dt'
-        else:
-            dt = date_to_query_param
-
-        date_query = _get_date_query(request, context, df, dt, date_fields)
+        date_query = _get_date_query(
+            request,
+            date_from_query_param,
+            date_to_query_param,
+            date_fields,
+            context
+        )
         queryset = queryset.filter(date_query)
 
     return queryset
