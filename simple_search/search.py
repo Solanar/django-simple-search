@@ -5,6 +5,21 @@ from django import http
 from . import utils
 
 
+def get_choice_query(request, choice_query_param, context=None):
+    query = models.Q()
+    GET = request.GET
+
+    query_choice_list = GET.getlist(choice_query_param, [])
+    if query_choice_list:
+        if context:
+            context[choice_query_param] = query_choice_list
+
+        choice_field = choice_query_param
+        query = utils.get_choice_query(query_choice_list, choice_field)
+
+    return query
+
+
 def get_date_query(
     request, date_from_query_param, date_to_query_param, date_fields,
     context=None, human_readable_date_format='MM/DD/YYYY'
@@ -65,13 +80,17 @@ def simple_search(
     fields=None,
     date_from_query_param='df',
     date_to_query_param='dt',
-    date_fields=None
+    date_fields=None,
+    choice_fields=None
 ):
     if not model and not queryset:
         raise Exception('Please provide at least one of model or queryset')
 
-    if not fields and not date_fields:
-        raise Exception('Please provide at least one of fields or date_fields')
+    if not fields and not date_fields and not choice_fields:
+        raise Exception(
+            'Please provide at least one of fields, date_fields, '
+            'or choice_fields'
+        )
 
     if not queryset:
         queryset = model.objects.all()
@@ -89,5 +108,12 @@ def simple_search(
             context
         )
         queryset = queryset.filter(date_query)
+
+    if choice_fields:
+        for choice_field in choice_fields:
+            choice_query = get_choice_query(
+                request, choice_field, context
+            )
+            queryset = queryset.filter(choice_query)
 
     return queryset

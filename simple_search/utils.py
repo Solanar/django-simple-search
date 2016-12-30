@@ -121,3 +121,9 @@ def get_date_query(
         or_query = or_query | q
 
     return or_query
+
+
+def get_choice_query(choice_list, choice_field):
+    query = models.Q(**{"%s__in" % choice_field: choice_list})
+
+    return query
