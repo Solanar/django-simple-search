@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib import messages
+from django import http
 
 from . import utils
 
@@ -26,13 +27,17 @@ def get_date_query(
                 query_date_from_string, query_date_to_string, date_fields
             )
         except utils.DoesNotMatchFormat:
-            messages.add_message(
-                request,
-                messages.WARNING,
-                "Invalid date. Please use {}.".format(
-                    human_readable_date_format
+            if isinstance(request, http.HttpRequest):
+                messages.add_message(
+                    request,
+                    messages.WARNING,
+                    "Invalid date. Please use {}.".format(
+                        human_readable_date_format
+                    )
                 )
-            )
+            else:
+                # TODO: how to handle django rest framework requests
+                pass
 
     return query
 
