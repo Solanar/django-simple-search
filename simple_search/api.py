@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from . import search
 
 
-class SearchModelViewSet(viewsets.ModelViewSet):
+class SearchModelViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = []
     search_date_fields = []
 

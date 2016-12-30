@@ -13,14 +13,14 @@ def get_date_query(
 
     query_date_from_string = GET.get(date_from_query_param, '').strip()
     query_date_to_string = GET.get(date_to_query_param, '').strip()
-    if context:
-        if query_date_from_string:
-            context[date_from_query_param] = query_date_from_string
-
-        if query_date_to_string:
-            context[date_to_query_param] = query_date_to_string
-
     if query_date_from_string or query_date_to_string:
+        if context:
+            if query_date_from_string:
+                context[date_from_query_param] = query_date_from_string
+
+            if query_date_to_string:
+                context[date_to_query_param] = query_date_to_string
+
         try:
             query = utils.get_date_query(
                 query_date_from_string, query_date_to_string, date_fields
@@ -42,8 +42,9 @@ def get_query(request, query_param, fields, context=None):
     GET = request.GET
 
     query_string = GET.get(query_param, '').strip()
-    if context and query_string:
-        context[query_param] = query_string
+    if query_string:
+        if context:
+            context[query_param] = query_string
 
         query = utils.get_query(query_string, fields)
 
@@ -71,11 +72,11 @@ def simple_search(
         queryset = model.objects.all()
 
     if fields:
-        query = _get_query(request, query_param, fields, context)
+        query = get_query(request, query_param, fields, context)
         queryset = queryset.filter(query)
 
     if date_fields:
-        date_query = _get_date_query(
+        date_query = get_date_query(
             request,
             date_from_query_param,
             date_to_query_param,
