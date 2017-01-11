@@ -1,8 +1,33 @@
 from django.db import models
+from django.db.models import fields as models_fields
 from django.contrib import messages
 from django import http
 
 from . import utils
+
+
+def get_bool_query(request, bool_query_param, context=None):
+    query = models.Q()
+    GET = request.GET
+
+    query_bool_string = GET.get(bool_query_param, '')
+    if query_bool_string:
+        if context:
+            context[bool_query_param] = query_bool_string
+
+        bool_field = bool_query_param
+        query_bool_string_lower = query_bool_string.lower()
+        if query_bool_string_lower == 'true':
+            query_bool_value = True
+        elif query_bool_string_lower == 'false':
+            query_bool_value = False
+        else:
+            raise Exception(
+                'Unhandled bool string {}'.format(query_bool_string)
+            )
+        query = utils.get_bool_query(query_bool_value, bool_field)
+
+    return query
 
 
 def get_choice_query(request, choice_query_param, context=None):
@@ -73,29 +98,55 @@ def get_query(request, query_param, fields, context=None):
 
 def simple_search(
     request,
+    fields,
     context=None,
     model=None,
     queryset=None,
     query_param='q',
-    fields=None,
     date_from_query_param='df',
     date_to_query_param='dt',
-    date_fields=None,
-    choice_fields=None
 ):
     if not model and not queryset:
         raise Exception('Please provide at least one of model or queryset')
 
-    if not fields and not date_fields and not choice_fields:
-        raise Exception(
-            'Please provide at least one of fields, date_fields, '
-            'or choice_fields'
-        )
+    if not fields:
+        raise Exception('Please provide fields')
 
     if not queryset:
         queryset = model.objects.all()
 
-    if fields:
+    if not model:
+        model = queryset.model
+
+    text_fields = []
+    date_fields = []
+    choice_fields = []
+    boolean_fields = []
+    for field_name in fields:
+        field = _get_field(field_name, model)
+
+        if field.choices:
+            choice_fields.append(field_name)
+            continue
+
+        is_text = (
+            isinstance(field, models_fields.CharField) or
+            isinstance(field, models_fields.TextField)
+        )
+        is_bool = (
+            isinstance(field, models_fields.BooleanField) or
+            isinstance(field, models_fields.NullBooleanField)
+        )
+        if is_text:
+            text_fields.append(field_name)
+        elif isinstance(field, models_fields.DateField):
+            date_fields.append(field_name)
+        elif is_bool:
+            boolean_fields.append(field_name)
+        else:
+            raise Exception('Unhandled field type {}'.format(type(field)))
+
+    if text_fields:
         query = get_query(request, query_param, fields, context)
         queryset = queryset.filter(query)
 
@@ -116,4 +167,25 @@ def simple_search(
             )
             queryset = queryset.filter(choice_query)
 
+    if boolean_fields:
+        for bool_field in boolean_fields:
+            bool_query = get_bool_query(
+                request, bool_field, context
+            )
+            queryset = queryset.filter(bool_query)
+
     return queryset
+
+
+def _get_field(field_name, model):
+    if '__' in field_name:
+        # traverse relations until we reach the field we're searching against
+        field_lookups = field_name.split('__')
+        for field_lookup in field_lookups:
+            field = model._meta.get_field(field_lookup)
+            if field.rel:
+                model = field.rel.to
+    else:
+        field = model._meta.get_field(field_name)
+
+    return field

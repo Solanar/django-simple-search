@@ -127,3 +127,9 @@ def get_choice_query(choice_list, choice_field):
     query = models.Q(**{"%s__in" % choice_field: choice_list})
 
     return query
+
+
+def get_bool_query(query_bool_value, bool_field):
+    query = models.Q(**{"%s" % bool_field: query_bool_value})
+
+    return query
