@@ -106,13 +106,13 @@ def simple_search(
     date_from_query_param='df',
     date_to_query_param='dt',
 ):
-    if not model and not queryset:
+    if not model and queryset is None:
         raise Exception('Please provide at least one of model or queryset')
 
     if not fields:
         raise Exception('Please provide fields')
 
-    if not queryset:
+    if queryset is None:
         queryset = model.objects.all()
 
     if not model:
