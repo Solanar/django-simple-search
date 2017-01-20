@@ -98,19 +98,33 @@ def get_query(request, query_param, fields, context=None):
 
 def simple_search(
     request,
-    fields,
+    fields=None,
     context=None,
     model=None,
     queryset=None,
     query_param='q',
     date_from_query_param='df',
     date_to_query_param='dt',
+    text_fields=None,
+    date_fields=None,
+    choice_fields=None,
+    boolean_fields=None,
 ):
     if not model and queryset is None:
         raise Exception('Please provide at least one of model or queryset')
 
-    if not fields:
-        raise Exception('Please provide fields')
+    no_fields = (
+        not fields and
+        not text_fields and
+        not date_fields and
+        not choice_fields and
+        not boolean_fields
+    )
+    if no_fields:
+        raise Exception(
+            'Please provide fields, text_fields, date_fields, '
+            'choice_fields, or boolean_fields'
+        )
 
     if queryset is None:
         queryset = model.objects.all()
@@ -118,10 +132,16 @@ def simple_search(
     if not model:
         model = queryset.model
 
-    text_fields = []
-    date_fields = []
-    choice_fields = []
-    boolean_fields = []
+    if not fields:
+        fields = []
+    if not text_fields:
+        text_fields = []
+    if not date_fields:
+        date_fields = []
+    if not choice_fields:
+        choice_fields = []
+    if not boolean_fields:
+        boolean_fields = []
     for field_name in fields:
         field = _get_field(field_name, model)
 
@@ -183,8 +203,8 @@ def _get_field(field_name, model):
         field_lookups = field_name.split('__')
         for field_lookup in field_lookups:
             field = model._meta.get_field(field_lookup)
-            if field.rel:
-                model = field.rel.to
+            if field.related_model:
+                model = field.related_model
     else:
         field = model._meta.get_field(field_name)
 
