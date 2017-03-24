@@ -35,7 +35,7 @@ def get_choice_query(request, choice_query_param, context=None):
     GET = request.GET
 
     query_choice_list = GET.getlist(choice_query_param, [])
-    if query_choice_list:
+    if any(query_choice_list):  # ignore list of empty str's
         if context:
             context[choice_query_param] = query_choice_list
 
