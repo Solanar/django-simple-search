@@ -145,7 +145,7 @@ def simple_search(
     for field_name in fields:
         field = _get_field(field_name, model)
 
-        if field.choices:
+        if field.choices or isinstance(field, models.ForeignKey):
             choice_fields.append(field_name)
             continue
 
