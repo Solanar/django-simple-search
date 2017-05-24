@@ -167,7 +167,7 @@ def simple_search(
             raise Exception('Unhandled field type {}'.format(type(field)))
 
     if text_fields:
-        query = get_query(request, query_param, fields, context)
+        query = get_query(request, query_param, text_fields, context)
         queryset = queryset.filter(query)
 
     if date_fields:
