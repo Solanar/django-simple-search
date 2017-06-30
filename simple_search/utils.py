@@ -31,8 +31,23 @@ def normalize_query(
     ]
 
 
+def flatten_choices(choices, flattened_choices=None):
+    if not flattened_choices:
+        flattened_choices = []
+
+    for value, human_readable in choices:
+        if isinstance(human_readable, tuple):
+            flattened_choices += flatten_choices(human_readable)
+        else:
+            flattened_choices.append((value, human_readable))
+
+    return flattened_choices
+
+
+# TODO: deprecate
 def get_query(query_string, search_fields, exact=False):
-    """Returns a query, that is a combination of exact or icontains Q objects.
+    """
+    Returns a query, that is a combination of exact or icontains Q objects.
 
     That combination aims to search keywords within a model
     by testing the given search fields.
@@ -51,7 +66,7 @@ def get_query(query_string, search_fields, exact=False):
 
             or_query = or_query | q
 
-        query = query & or_query
+        query = query & or_query  # We must find all terms
 
     return query
 
@@ -131,5 +146,36 @@ def get_choice_query(choice_list, choice_field):
 
 def get_bool_query(query_bool_value, bool_field):
     query = models.Q(**{"%s" % bool_field: query_bool_value})
+
+    return query
+
+
+def get_text_query(query_string, search_fields, choice_fields, exact=False):
+    query = models.Q()  # Query to search for every search term
+    terms = normalize_query(query_string)
+
+    for term in terms:
+        or_query = models.Q()  # Query to search for a given term in each field
+        for field_name in search_fields:
+            if exact:
+                text_query = models.Q(**{"%s" % field_name: term})
+            else:
+                text_query = models.Q(**{"%s__icontains" % field_name: term})
+
+            or_query |= text_query
+
+        for choice_field, choices in choice_fields:
+            flattened_choices = flatten_choices(choices)
+            choice_list = []
+
+            for value, human_readable in flattened_choices:
+                if term.upper() in human_readable.upper():
+                    choice_list.append(value)
+
+            choice_query = get_choice_query(choice_list, choice_field)
+
+            or_query |= choice_query
+
+        query &= or_query  # We must find all terms
 
     return query

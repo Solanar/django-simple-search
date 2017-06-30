@@ -82,7 +82,9 @@ def get_date_query(
     return query
 
 
-def get_query(request, query_param, fields, context=None):
+def get_text_query(
+    request, query_param, text_fields, choice_fields, context=None
+):
     query = models.Q()
     GET = request.GET
 
@@ -91,7 +93,7 @@ def get_query(request, query_param, fields, context=None):
         if context:
             context[query_param] = query_string
 
-        query = utils.get_query(query_string, fields)
+        query = utils.get_text_query(query_string, text_fields, choice_fields)
 
     return query
 
@@ -146,7 +148,7 @@ def simple_search(
         field = _get_field(field_name, model)
 
         if field.choices or isinstance(field, models.ForeignKey):
-            choice_fields.append(field_name)
+            choice_fields.append((field_name, field.choices))
             continue
 
         is_text = (
@@ -166,9 +168,18 @@ def simple_search(
         else:
             raise Exception('Unhandled field type {}'.format(type(field)))
 
-    if text_fields:
-        query = get_query(request, query_param, text_fields, context)
+    if text_fields or choice_fields:
+        query = get_text_query(
+            request, query_param, text_fields, choice_fields, context
+        )
         queryset = queryset.filter(query)
+
+    if choice_fields:
+        for choice_field, _ in choice_fields:
+            choice_query = get_choice_query(
+                request, choice_field, context
+            )
+            queryset.filter(choice_query)
 
     if date_fields:
         date_query = get_date_query(
@@ -179,13 +190,6 @@ def simple_search(
             context
         )
         queryset = queryset.filter(date_query)
-
-    if choice_fields:
-        for choice_field in choice_fields:
-            choice_query = get_choice_query(
-                request, choice_field, context
-            )
-            queryset = queryset.filter(choice_query)
 
     if boolean_fields:
         for bool_field in boolean_fields:
