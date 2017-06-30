@@ -10,7 +10,7 @@ os.chdir(path.normpath(path.join(path.abspath(__file__), os.pardir)))
 
 setuptools.setup(
     name='django-simple-search',
-    version='0.1.10',  # major.minor[.patch]
+    version='0.1.11',  # major.minor[.patch]
     packages=['simple_search'],
     install_requires=['django'],
     include_package_data=True,
