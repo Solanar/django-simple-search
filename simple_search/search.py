@@ -147,7 +147,12 @@ def simple_search(
     for field_name in fields:
         field = _get_field(field_name, model)
 
-        if field.choices or isinstance(field, models.ForeignKey):
+        is_choice_field = (
+            field.choices or
+            isinstance(field, models.ForeignKey) or
+            isinstance(field, models.AutoField)
+        )
+        if is_choice_field:
             choice_fields.append((field_name, field.choices))
             continue
 
@@ -179,7 +184,7 @@ def simple_search(
             choice_query = get_choice_query(
                 request, choice_field, context
             )
-            queryset.filter(choice_query)
+            queryset = queryset.filter(choice_query)
 
     if date_fields:
         date_query = get_date_query(
