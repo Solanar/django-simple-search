@@ -29,8 +29,13 @@ class Search:
 
 class SearchListView(generic.ListView, Search):
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        queryset = kwargs.pop('object_list', self.object_list)
 
-        context['object_list'] = self.search(context['object_list'], context)
+        context = {}
+        queryset = self.search(queryset, context)
 
-        return context
+        context['object_list'] = queryset
+
+        context.update(kwargs)
+
+        return super().get_context_data(**context)
